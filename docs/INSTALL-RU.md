@@ -1,136 +1,288 @@
-# Установка LineageOS 19.1 GSI на X6515
+# Полная установка LineageOS 19.1 GSI и фикса яркости на Infinix X6515
 
-Документ описывает именно проверенный аппарат `Infinix X6515`, а не похожие по
-названию Smart 7 с другим SoC или layout.
+Это последовательная инструкция от чистого Mac до работающего телефона. Она
+проверена только на **Infinix Smart 7 X6515 / MT6761**, stock build
+`X6515-H6127JAk-S-RU-231117V1307`, активном слоте B.
 
-## Требования
+> [!CAUTION]
+> Разблокировка bootloader полностью удалит данные. Ошибка в имени раздела
+> способна оставить телефон без загрузки. Не продолжайте при несовпадении
+> модели, fingerprint, SHA-256 или активного слота.
 
-- заряд не ниже 70%;
-- резервная копия пользовательских данных;
-- включённые OEM unlocking и USB debugging;
-- качественный data-кабель; старый USB-хаб допустим, если ADB и fastboot видят
-  устройство стабильно;
-- Android Platform Tools;
-- GSI `arm64_bvN` или `arm64_bvS` для A/B и system-as-root;
-- понимание, что unlock полностью очищает userdata.
+## 1. Что скачать
 
-Проверенный GSI:
+Создайте рабочую папку, откройте в ней Terminal и скачайте этот проект:
 
-```text
-lineage-19.1-20250606-UNOFFICIAL-arm64_bvN.img
-SHA256 65ae1cc41d48c15bdf40d159ece55b473fafcdc8596e127ffab13cf0b36a0e5b
-
-lineage-19.1-20250606-UNOFFICIAL-arm64_bvS.img
-SHA256 49792f857b54c6c950bacc6e7c742b39a3dea672aa08072c70878743fb062f76
+```sh
+git clone https://github.com/matveenko/infinix-x6515-lineage-gsi.git
+cd infinix-x6515-lineage-gsi
+mkdir -p downloads
 ```
 
-`bvN` — vanilla без встроенного root; `bvS` — PHH-SU/root variant. Не смешивайте
-эти обозначения с `vndklite` или 32-bit binder builds.
+Если Git не установлен, репозиторий можно скачать кнопкой **Code → Download
+ZIP** на [странице проекта](https://github.com/matveenko/infinix-x6515-lineage-gsi),
+распаковать и открыть полученную папку в Terminal.
 
-## 1. Инвентаризация
+### 1.1 Android Platform Tools
 
-`00-doctor.sh` — единственный скрипт репозитория, который нужен на этапе
-подготовки к GSI. Он ничего не изменяет: только проверяет доступность `adb` и
-`fastboot`, модель, MediaTek MT6761, Treble, ARM64, fingerprint и активный слот.
+Скачайте **SDK Platform-Tools for Mac** с
+[официальной страницы Google](https://developer.android.com/tools/releases/platform-tools).
+Android Studio не требуется. Переместите скачанный ZIP в `Downloads`, затем из
+корня проекта выполните:
+
+```sh
+unzip ~/Downloads/platform-tools-latest-darwin.zip -d .
+chmod +x platform-tools/adb platform-tools/fastboot
+./platform-tools/adb version
+./platform-tools/fastboot --version
+```
+
+Скрипты сами найдут `platform-tools/adb` и `platform-tools/fastboot` в папке
+проекта. Если браузер переименовал ZIP, подставьте его настоящее имя.
+
+### 1.2 LineageOS GSI
+
+Для полного сценария, включая backup и фикс яркости, скачайте проверенный
+root-вариант:
+
+**[lineage-19.1-20250606-UNOFFICIAL-arm64_bvS.img.gz](https://sourceforge.net/projects/andyyan-gsi/files/lineage-19.x/lineage-19.1-20250606-UNOFFICIAL-arm64_bvS.img.gz/download)**
+
+Нужен именно `arm64_bvS`, без `vndklite`:
+
+- `arm64` — 64-битная архитектура;
+- `b` — A/B, system-as-root;
+- `v` — vanilla, без Google Apps;
+- `S` — PHH Superuser, необходимый скрипту снятия `vendor_b`.
+
+Переместите архив в `downloads`, распакуйте и проверьте **распакованный IMG**:
+
+```sh
+gunzip downloads/lineage-19.1-20250606-UNOFFICIAL-arm64_bvS.img.gz
+shasum -a 256 downloads/lineage-19.1-20250606-UNOFFICIAL-arm64_bvS.img
+```
+
+Ожидаемый SHA-256 IMG:
+
+```text
+49792f857b54c6c950bacc6e7c742b39a3dea672aa08072c70878743fb062f76
+```
+
+Vanilla-вариант без root также загружался, но с ним нельзя выполнить
+`10-dump-vendor.sh`:
+
+**[lineage-19.1-20250606-UNOFFICIAL-arm64_bvN.img.gz](https://sourceforge.net/projects/andyyan-gsi/files/lineage-19.x/lineage-19.1-20250606-UNOFFICIAL-arm64_bvN.img.gz/download)**
+
+SHA-256 распакованного `bvN` IMG:
+
+```text
+65ae1cc41d48c15bdf40d159ece55b473fafcdc8596e127ffab13cf0b36a0e5b
+```
+
+### 1.3 Инструменты для фикса яркости
+
+Они понадобятся после первого запуска LineageOS:
+
+```sh
+brew install e2fsprogs
+python3 --version
+/opt/homebrew/opt/e2fsprogs/sbin/debugfs -V
+```
+
+Если команды `brew` нет, сначала установите Homebrew с
+[официального сайта](https://brew.sh/). Скрипты учитывают стандартные пути
+Homebrew как на Apple Silicon, так и на Intel Mac.
+
+## 2. Подготовить телефон
+
+1. Зарядите телефон минимум до 70% и сохраните все данные.
+2. В XOS включите Developer options.
+3. Включите **OEM unlocking** и **USB debugging**.
+4. Подключите телефон data-кабелем и подтвердите RSA-диалог отладки.
+5. Из корня проекта выполните:
 
 ```sh
 ./scripts/00-doctor.sh
-adb devices -l
-adb shell getprop ro.product.model
-adb shell getprop ro.treble.enabled
-adb shell getprop ro.product.cpu.abilist
-adb shell getprop ro.boot.slot_suffix
 ```
 
-Ожидаются X6515, Treble `true`, `arm64-v8a` и A/B slot suffix.
+### Что делает `00-doctor.sh`
 
-## 2. Unlock
-
-Разблокировка уничтожит userdata:
-
-```sh
-adb reboot bootloader
-fastboot devices
-fastboot flashing unlock
-```
-
-Подтвердите unlock аппаратными кнопками. После wipe снова включите USB debugging.
-
-## 3. Fastbootd
-
-Dynamic logical partitions прошиваются из userspace fastboot:
-
-```sh
-adb reboot fastboot
-fastboot getvar is-userspace
-fastboot getvar current-slot
-```
-
-Ожидается `is-userspace: yes`. В проверенной установке активным был слот B.
-Ниже команды специально используют `_b`; не копируйте их, если ваш слот другой.
-
-## 4. Освобождение места и system
-
-На тестовом layout недостаточно свободного места для 2-ГБ system image. Был
-удалён snapshot/COW логического `product_b`, а `system_b` увеличен до размера
-образа. Это устройство-зависимая операция: сначала сохраните вывод
-`fastboot getvar all` и убедитесь в именах разделов.
-
-```sh
-fastboot delete-logical-partition product_b-cow
-fastboot resize-logical-partition system_b 2121457664
-fastboot flash system_b lineage-19.1-20250606-UNOFFICIAL-arm64_bvS.img
-fastboot reboot
-```
-
-Размер `2121457664` относится к указанному образу. Для другого GSI используйте
-его фактический размер в байтах.
-
-## 5. Первый старт и factory reset
-
-На тестовом X6515 `fastboot -w` завершался ошибкой vendor fastboot wipe tasks, а
-Lineage зависал из-за старого userdata. Решение:
-
-1. загрузиться в recovery;
-2. выполнить `Factory reset / Format data`;
-3. перезагрузиться в System.
-
-Первый старт может быть долгим. Не отключайте питание во время анимации без
-диагностики ADB/logcat.
-
-## 6. Root variant
-
-Переход с `bvN` на соответствующий `bvS` того же релиза выполнялся повторной
-прошивкой `system_b` без wipe. Перед этим убедитесь, что userdata уже корректно
-создана и имеется рабочий путь в recovery/fastbootd.
-
-После загрузки root-ADB включается в Developer options / PHH settings:
-
-```sh
-adb root
-adb shell id
-```
-
-Ожидается `uid=0(root)`.
-
-## 7. Базовая проверка
-
-Проверьте Wi-Fi, SIM detection, звук, Bluetooth, fingerprint, rotation, power
-button, камеру, звонки и мобильные данные до установки дополнительного софта.
-
-## 8. Что делать со скриптами после установки
-
-На этом установка GSI закончена. Остальные скрипты не нужны для самой прошивки
-LineageOS — они образуют отдельный безопасный конвейер исправления яркости:
+Это только диагностика, она ничего не прошивает. Скрипт проверяет наличие ADB и
+fastboot, подключение телефона, `MT6761`, Treble, ARM64, vendor fingerprint и
+активный слот B. В конце должно быть:
 
 ```text
-00-doctor        убедиться, что подключён именно проверенный X6515/slot B
-10-dump-vendor   снять и проверить собственный backup vendor_b
-20-patch-vendor  собрать из backup изменённый vendor image на Mac
-30-disable-verity отключить восстановление изменённого блока через verity/FEC
-40-flash-vendor  проверить образ и прошить его только через fastbootd
-50-verify        проверить HAL и аппаратный результат 4080/4095
+Device matches the tested X6515 family. No data was changed.
 ```
 
-Полные команды, необходимые перезагрузки и объяснение риска находятся в
-[инструкции по исправлению яркости](BRIGHTNESS-FIX-RU.md#применение-готовых-скриптов).
+Если проверка остановилась, не переходите к следующим пунктам.
+
+## 3. Разблокировать bootloader
+
+Это действие полностью очистит userdata:
+
+```sh
+./platform-tools/adb reboot bootloader
+./platform-tools/fastboot devices
+./platform-tools/fastboot flashing unlock
+```
+
+Подтвердите разблокировку кнопками телефона. После wipe загрузите XOS, пройдите
+первичную настройку и снова включите USB debugging.
+
+## 4. Войти в fastbootd
+
+```sh
+./platform-tools/adb reboot fastboot
+./platform-tools/fastboot getvar is-userspace
+./platform-tools/fastboot getvar current-slot
+```
+
+Должно быть `is-userspace: yes` и `current-slot: b`. `fastbootd` — экран с
+меню поверх recovery; обычный чёрный bootloader fastboot для logical partitions
+не подходит.
+
+## 5. Прошить LineageOS GSI
+
+На проверенном layout для system image не хватало места. Был удалён только COW
+snapshot `product_b`, затем `system_b` увеличен ровно до размера проверенного
+образа:
+
+```sh
+./platform-tools/fastboot delete-logical-partition product_b-cow
+./platform-tools/fastboot resize-logical-partition system_b 2121457664
+./platform-tools/fastboot flash system_b downloads/lineage-19.1-20250606-UNOFFICIAL-arm64_bvS.img
+./platform-tools/fastboot reboot
+```
+
+Число `2121457664` относится только к указанному распакованному `bvS` IMG.
+Команды намеренно используют слот B и не являются универсальными для других
+ревизий телефона.
+
+## 6. Выполнить factory reset
+
+На тестовом X6515 `fastboot -w` завершался ошибкой vendor wipe tasks, а старая
+userdata мешала первому запуску. Если LineageOS не проходит boot animation:
+
+1. войдите в recovery аппаратными кнопками;
+2. на экране `No command` удерживайте Power и один раз нажмите Volume Up;
+3. выберите **Factory reset / Wipe data**;
+4. подтвердите форматирование и выберите **Reboot system now**.
+
+Первый запуск может занять несколько минут.
+
+## 7. Включить root ADB и проверить железо
+
+В LineageOS включите Developer options, затем root debugging в PHH-настройках.
+Проверьте:
+
+```sh
+./platform-tools/adb root
+./platform-tools/adb shell id
+```
+
+Ожидается `uid=0(root)`. До фикса яркости проверьте touch, Wi-Fi, звук,
+Bluetooth, fingerprint, автоповорот, сон/пробуждение, камеру и SIM.
+
+## 8. Скрипт `10-dump-vendor.sh`: сохранить vendor
+
+Состояние телефона: LineageOS полностью загружен, USB debugging и root ADB
+включены.
+
+```sh
+./scripts/10-dump-vendor.sh
+```
+
+Скрипт снова запускает диагностику, получает root ADB, считывает
+`/dev/block/mapper/vendor_b` и сохраняет его как `backups/vendor_b.img`. Затем
+проверяет размер `500649984` и SHA-256:
+
+```text
+b0e44ada3b32e8d230f1863ee5e27d0225903765d9ae7e8f3ead857ac4c755e4
+```
+
+Скопируйте `backups/vendor_b.img` ещё на один надёжный носитель. Это ваш путь
+отката; файл намеренно исключён из Git.
+
+## 9. Скрипт `20-patch-vendor.sh`: собрать исправленный образ
+
+Состояние телефона не важно: этот шаг выполняется только на Mac.
+
+```sh
+./scripts/20-patch-vendor.sh \
+  backups/vendor_b.img \
+  builds/vendor_b-x6515-brightness.img
+```
+
+Скрипт:
+
+1. проверяет SHA-256 и размер исходного vendor;
+2. извлекает MediaTek Lights HAL;
+3. проверяет SHA-256 самого HAL;
+4. меняет одну AArch64-инструкцию `lsr #8` на `lsr #4`;
+5. возвращает executable mode, владельца и SELinux label;
+6. проверяет файловую систему и повторно извлекает HAL для сверки.
+
+Результат: `builds/vendor_b-x6515-brightness.img`. Исходный backup не меняется.
+
+## 10. Скрипт `30-disable-verity.sh`: разрешить изменённый vendor
+
+Состояние телефона: LineageOS полностью загружен и виден через ADB.
+
+```sh
+./scripts/30-disable-verity.sh
+```
+
+Введите `DISABLE-VERITY`, когда скрипт запросит подтверждение. Он выполняет
+штатный `adb disable-verity`, чтобы FEC не подменял исправленный блок исходным.
+После сообщения `Reboot required` выполните:
+
+```sh
+./platform-tools/adb reboot
+```
+
+Обязательно дождитесь полной загрузки Android.
+
+## 11. Скрипт `40-flash-vendor.sh`: прошить фикс
+
+Сначала переведите телефон из загруженного Android в fastbootd:
+
+```sh
+./platform-tools/adb reboot fastboot
+./platform-tools/fastboot getvar is-userspace
+```
+
+При `is-userspace: yes` запустите:
+
+```sh
+./scripts/40-flash-vendor.sh builds/vendor_b-x6515-brightness.img
+```
+
+Скрипт проверяет размер образа, SHA-256 патченного HAL, fastbootd, активный слот
+B и размер `vendor_b`. Только после этого он попросит ввести
+`FLASH-VENDOR-B`, прошьёт раздел и перезагрузит телефон.
+
+## 12. Скрипт `50-verify-brightness.sh`: проверить результат
+
+Состояние телефона: LineageOS снова полностью загрузился и доступен по ADB.
+
+```sh
+./scripts/50-verify-brightness.sh
+```
+
+Скрипт выключает несовместимый PHH alternative scale, включает ручную яркость,
+временно выставляет максимум и проверяет:
+
+- SHA-256 смонтированного HAL;
+- состояние `vendor.light-default`;
+- аппаратное значение `4080/4095`.
+
+Финальная строка успешной проверки:
+
+```text
+X6515 brightness patch verified.
+```
+
+После этого вручную проверьте минимум, середину, движение ползунка в обе
+стороны, touch и сон/пробуждение. Техническое объяснение патча находится в
+[BRIGHTNESS-FIX-RU.md](BRIGHTNESS-FIX-RU.md), откат — в
+[RECOVERY-RU.md](RECOVERY-RU.md).

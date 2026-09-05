@@ -8,8 +8,8 @@ output_image="$2"
 expected_vendor_sha=b0e44ada3b32e8d230f1863ee5e27d0225903765d9ae7e8f3ead857ac4c755e4
 expected_size=500649984
 
-debugfs="$(find_tool DEBUGFS debugfs /opt/homebrew/opt/e2fsprogs/sbin/debugfs)"
-e2fsck="$(find_tool E2FSCK e2fsck /opt/homebrew/opt/e2fsprogs/sbin/e2fsck)"
+debugfs="$(find_homebrew_tool DEBUGFS debugfs)"
+e2fsck="$(find_homebrew_tool E2FSCK e2fsck)"
 python="$(find_tool PYTHON python3)"
 
 [ -f "$source_image" ] || die "Missing source image: $source_image"

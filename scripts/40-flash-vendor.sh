@@ -7,7 +7,7 @@ image="$1"
 expected_size=500649984
 expected_hal_sha=619f0f16b5869a4d9ec4e234643258151b41471b8af8a941b4089e59bc9ab02a
 fastboot="$(find_tool FASTBOOT fastboot "$repo_root/platform-tools/fastboot")"
-debugfs="$(find_tool DEBUGFS debugfs /opt/homebrew/opt/e2fsprogs/sbin/debugfs)"
+debugfs="$(find_homebrew_tool DEBUGFS debugfs)"
 
 [ -f "$image" ] || die "Missing image: $image"
 size="$(wc -c < "$image" | tr -d ' ')"

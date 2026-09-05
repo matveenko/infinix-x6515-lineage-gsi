@@ -24,4 +24,17 @@ find_tool() {
     fi
 }
 
+find_homebrew_tool() {
+    var_name="$1"
+    command_name="$2"
+    arm_path="/opt/homebrew/opt/e2fsprogs/sbin/$command_name"
+    intel_path="/usr/local/opt/e2fsprogs/sbin/$command_name"
+    if [ -x "$arm_path" ]; then
+        fallback="$arm_path"
+    else
+        fallback="$intel_path"
+    fi
+    find_tool "$var_name" "$command_name" "$fallback"
+}
+
 repo_root="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"

@@ -26,6 +26,10 @@ SHA256 49792f857b54c6c950bacc6e7c742b39a3dea672aa08072c70878743fb062f76
 
 ## 1. Inventory
 
+`00-doctor.sh` is the only repository script used before installing the GSI.
+It changes nothing: it checks `adb`, `fastboot`, model, MT6761, Treble, ARM64,
+vendor fingerprint, and active slot.
+
 ```sh
 ./scripts/00-doctor.sh
 adb devices -l
@@ -102,3 +106,20 @@ adb shell id
 
 Expect `uid=0(root)`. Before adding apps, test Wi-Fi, SIM, audio, Bluetooth,
 fingerprint, rotation, power, touch, camera, calls, and mobile data.
+
+## 7. What the remaining scripts are for
+
+The GSI installation is now complete. The other scripts form a separate,
+guarded brightness-fix pipeline:
+
+```text
+00-doctor         verify the tested X6515 and active slot B
+10-dump-vendor    dump and validate this phone's own vendor_b backup
+20-patch-vendor   build a modified vendor image on the Mac
+30-disable-verity prevent verity/FEC from restoring the changed block
+40-flash-vendor   validate and flash the image through fastbootd
+50-verify         validate the mounted HAL and the 4080/4095 result
+```
+
+For exact commands and required reboots, continue with the
+[brightness guide](BRIGHTNESS-FIX-EN.md#using-the-scripts).

@@ -57,6 +57,68 @@ The patched mounted HAL must have SHA-256:
 619f0f16b5869a4d9ec4e234643258151b41471b8af8a941b4089e59bc9ab02a
 ```
 
+## Using the scripts
+
+Run this stage **only after the rooted LineageOS variant has booted
+successfully**. The Mac needs Android Platform Tools, Python 3, and `e2fsprogs`:
+
+```sh
+brew install e2fsprogs
+```
+
+From the cloned repository root, connect the booted phone with root debugging
+enabled, validate it, and dump its own vendor partition:
+
+```sh
+./scripts/00-doctor.sh
+./scripts/10-dump-vendor.sh
+```
+
+This creates `backups/vendor_b.img` only if its size and V1307 SHA-256 match.
+Copy that original backup to another safe location, then build the patch:
+
+```sh
+./scripts/20-patch-vendor.sh \
+  backups/vendor_b.img \
+  builds/vendor_b-x6515-brightness.img
+```
+
+Disable verity; the script requires the literal confirmation
+`DISABLE-VERITY`:
+
+```sh
+./scripts/30-disable-verity.sh
+adb reboot
+```
+
+After Android fully boots and ADB reconnects, enter **fastbootd**, not classic
+bootloader fastboot:
+
+```sh
+adb reboot fastboot
+fastboot getvar is-userspace
+# expected: is-userspace: yes
+```
+
+Flash the built image. The script revalidates its size and patched HAL,
+fastbootd mode, slot B, and partition size, then requires
+`FLASH-VENDOR-B`:
+
+```sh
+./scripts/40-flash-vendor.sh builds/vendor_b-x6515-brightness.img
+```
+
+After Android fully boots, run the automated check. It disables PHH alternative
+scale, selects manual brightness, and temporarily sets maximum brightness:
+
+```sh
+./scripts/50-verify-brightness.sh
+```
+
+Success means the patched HAL is running and sysfs reports `4080/4095`. Also
+test the full slider, minimum, midpoint, sleep/wake, and touch. If anything
+fails, use the [recovery guide](RECOVERY-EN.md).
+
 ## Verification
 
 ```sh

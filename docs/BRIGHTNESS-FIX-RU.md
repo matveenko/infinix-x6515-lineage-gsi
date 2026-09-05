@@ -128,6 +128,72 @@ adb reboot
 619f0f16b5869a4d9ec4e234643258151b41471b8af8a941b4089e59bc9ab02a
 ```
 
+## Применение готовых скриптов
+
+Этот этап выполняется **после успешной установки и загрузки root-варианта
+LineageOS**. На Mac должны быть Android Platform Tools, Python 3 и `e2fsprogs`:
+
+```sh
+brew install e2fsprogs
+```
+
+Запускайте команды из корня клонированного репозитория.
+
+Сначала подключите загруженный Android с включённой root-отладкой. Проверьте
+телефон и снимите собственный `vendor_b`:
+
+```sh
+./scripts/00-doctor.sh
+./scripts/10-dump-vendor.sh
+```
+
+В результате появится `backups/vendor_b.img`. Скрипт продолжит работу только
+при точном размере и SHA-256 проверенного V1307. Скопируйте этот исходный backup
+ещё в одно безопасное место, затем соберите изменённый образ:
+
+```sh
+./scripts/20-patch-vendor.sh \
+  backups/vendor_b.img \
+  builds/vendor_b-x6515-brightness.img
+```
+
+Теперь отключите verity. Скрипт запросит буквальное подтверждение
+`DISABLE-VERITY`:
+
+```sh
+./scripts/30-disable-verity.sh
+adb reboot
+```
+
+Дождитесь полной загрузки Android, снова убедитесь, что ADB доступен, и войдите
+в **fastbootd**, а не обычный bootloader fastboot:
+
+```sh
+adb reboot fastboot
+fastboot getvar is-userspace
+# ожидается: is-userspace: yes
+```
+
+Прошейте собранный образ. `40-flash-vendor.sh` повторно проверит размер,
+патченный HAL, fastbootd, активный слот B и размер раздела, после чего запросит
+`FLASH-VENDOR-B`:
+
+```sh
+./scripts/40-flash-vendor.sh builds/vendor_b-x6515-brightness.img
+```
+
+После полной загрузки Android выполните автоматическую проверку. Она выключает
+PHH alternative scale, переводит яркость в ручной режим и временно выставляет
+максимум:
+
+```sh
+./scripts/50-verify-brightness.sh
+```
+
+Успешный итог: patched HAL запущен, sysfs показывает `4080/4095`. Затем вручную
+проверьте ползунок, минимум, середину, сон/пробуждение и touch. При проблемах
+используйте [инструкцию восстановления](RECOVERY-RU.md).
+
 ## Проверка
 
 ```sh

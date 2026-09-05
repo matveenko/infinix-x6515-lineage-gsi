@@ -48,6 +48,12 @@ GSI:                   LineageOS 19.1 arm64_bvS / arm64_bvN
 
 Russian version: [README.md](README.md).
 
+The scripts **do not install the GSI automatically**: changing dynamic
+partitions is too device-specific for blind automation. `INSTALL-EN.md` covers
+the manual LineageOS installation. After its first successful boot, the scripts
+validate the phone, save its own vendor image, build the brightness fix, flash
+it, and verify the result. The exact sequence is in the brightness guide.
+
 ## Quick reference: brightness fix
 
 This assumes a booted root/userdebug GSI, unlocked bootloader, official Android

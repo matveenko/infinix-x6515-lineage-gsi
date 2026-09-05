@@ -8,6 +8,17 @@ On the tested phone, Wi-Fi, audio, Bluetooth, fingerprint, rotation,
 sleep/wake, touch, and the full smooth brightness range work. The SIM is
 detected; mobile data still needs testing with an active SIM.
 
+## Start here
+
+The complete step-by-step installation is in
+**[docs/INSTALL-EN.md](docs/INSTALL-EN.md)**. Read it in full before copying
+commands, especially the model checks, active slot B, bootloader unlock,
+`fastbootd`, and factory-reset sections.
+
+After LineageOS boots successfully, continue with the
+**[brightness fix](docs/BRIGHTNESS-FIX-EN.md)**. If the phone no longer boots,
+follow the **[recovery guide](docs/RECOVERY-EN.md)**.
+
 > [!CAUTION]
 > Unlocking the bootloader erases all user data. Flashing the wrong dynamic
 > partition can make the phone unbootable. This project was tested only on the
@@ -37,7 +48,7 @@ GSI:                   LineageOS 19.1 arm64_bvS / arm64_bvN
 
 Russian version: [README.md](README.md).
 
-## Quick path: brightness fix
+## Quick reference: brightness fix
 
 This assumes a booted root/userdebug GSI, unlocked bootloader, official Android
 Platform Tools, Python 3, and `e2fsprogs`. Run from the repository root:

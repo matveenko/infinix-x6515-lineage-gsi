@@ -1,0 +1,16 @@
+.DS_Store
+.android/
+*.apk
+*.img
+*.img.gz
+*.img.xz
+*.zip
+*.bin
+*.log
+backups/
+downloads/
+platform-tools/
+mtkclient/
+mtk-venv/
+__pycache__/
+*.pyc
